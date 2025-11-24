@@ -1,5 +1,8 @@
 # RaceTrack Studio
 
+IF YOU JUST WANT A ONE-CLICK EXECUTABLE WITH SAME FUNCTIONALITY WITHOUT SETTING UP THE .VENV AND INSTALLING THE REQUIRED PACKAGES - FOLLOW THIS LINK: 
+https://drive.google.com/file/d/1vqKAbIPMqP4TIQTAbmfHB6MgAO_Abdf1/view?usp=sharing
+
 A comprehensive race telemetry analysis and visualization tool for Toyota GR Cup racing data.
 
 ## Features
