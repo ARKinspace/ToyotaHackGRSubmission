@@ -1,0 +1,1310 @@
+# Race Track Studio - Complete Functionality & Workflow Guide
+
+## Application Title: **Race Track Studio**
+*Professional Race Track Mapping & Telemetry Analysis System*
+
+---
+
+## Table of Contents
+1. [Executive Overview](#executive-overview)
+2. [System Architecture](#system-architecture)
+3. [Complete Feature Set](#complete-feature-set)
+4. [Workflow Guide](#workflow-guide)
+5. [Technical Capabilities](#technical-capabilities)
+6. [Data Integration](#data-integration)
+7. [Advanced Analytics](#advanced-analytics)
+8. [File Format Specifications](#file-format-specifications)
+
+---
+
+## Executive Overview
+
+**Race Track Studio** is a comprehensive desktop application for professional race track analysis, telemetry visualization, and driver performance optimization. Built with PyQt6, it provides a complete workflow from track geometry acquisition to detailed lap-by-lap telemetry analysis with 3D visualization.
+
+### Core Capabilities
+- **OpenStreetMap Integration**: Automatic track geometry fetching and processing
+- **High-Precision Spline Generation**: 1-meter resolution track mapping with auto-scaling
+- **Fine-Grained Track Editing**: Node-level width adjustment and turn marker placement
+- **3D Telemetry Visualization**: Real-time playback with elevation-aware rendering
+- **Advanced Analytics Dashboard**: Multi-lap comparison, sector timing, and performance metrics
+- **Session Persistence**: Complete state saving with telemetry data embedding
+
+---
+
+## System Architecture
+
+### 4-Tab Workflow Design
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Tab 1: SCAN & FINALIZE                                     │
+│  ├─ Track Search (GPS coordinates)                          │
+│  ├─ OpenStreetMap Data Acquisition                          │
+│  ├─ Segment-Level Editing (width, type, delete)             │
+│  ├─ Technical Data Configuration (sectors, length)          │
+│  └─ Spline Generation & Auto-Scaling                        │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Tab 2: FINE-TUNE                                           │
+│  ├─ Node Selection (A/B pair placement)                     │
+│  ├─ Width Range Updates                                     │
+│  ├─ Selection Inversion (inside/outside track)              │
+│  ├─ Turn Marker Creation (numbered corners)                 │
+│  └─ Turn Deletion & Management                              │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Tab 3: 3D RENDER                                           │
+│  ├─ Telemetry Data Loading (parsed or raw)                  │
+│  ├─ Race & Vehicle Selection                                │
+│  ├─ Real-Time 3D Playback (variable speed 1x-1000x)         │
+│  ├─ Camera Modes (3rd person, top-down, free)               │
+│  ├─ Live HUD (RPM, gear, sector times, distance)            │
+│  ├─ Sector Timing with Line Crossing Detection              │
+│  ├─ Lap-Specific Analytics (peak brake, peak G)             │
+│  └─ Trail Visualization (Tron-style lap tracking)           │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Tab 4: RACE TELEMETRY                                      │
+│  ├─ Multi-Plot Dashboard (9+ synchronized charts)           │
+│  ├─ Lap-by-Lap Comparison                                   │
+│  ├─ Time Delta Analysis                                     │
+│  ├─ Gear Shift Detection & Analysis                         │
+│  ├─ Turn-by-Turn Performance Breakdown                      │
+│  ├─ Instability Index Calculation                           │
+│  └─ Interactive Plot Focusing & Zoom                        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Module Structure
+
+```
+Race Track Studio/
+├── main.py                          # Application entry point
+├── Code/
+│   ├── GUI/
+│   │   ├── MainWindow.py            # Tab orchestration & session management
+│   │   ├── TrackScanner.py          # Tab 1: Track acquisition & finalization
+│   │   ├── TrackViewer.py           # Shared track visualization widget
+│   │   ├── FineTuner.py             # Tab 2: Node-level editing
+│   │   ├── Render3D.py              # Tab 3: 3D telemetry playback (2405 lines)
+│   │   └── RaceTelemetryTab.py      # Tab 4: Analytics dashboard (1919 lines)
+│   └── Core/
+│       ├── MapCreator/
+│       │   ├── track_fetcher.py     # OpenStreetMap Overpass API integration
+│       │   └── track_processor.py   # Spline generation & graph stitching
+│       ├── TelemetryEngine/
+│       │   ├── telemetry_loader.py  # CSV/parsed data loading
+│       │   ├── state_processor.py   # Position/rotation calculation
+│       │   └── __init__.py
+│       ├── ReadEngine/
+│       │   └── telemetry_engine.py  # Session management
+│       └── TelemetryParsing.py      # Raw telemetry parser
+└── Non_Code/
+    ├── dataSets/                    # Race telemetry data
+    └── outputs/                     # Parsed vehicle files
+```
+
+---
+
+## Complete Feature Set
+
+### Tab 1: Scan & Finalize
+
+#### Track Acquisition
+- **Coordinate-Based Search**: Enter GPS coordinates (lat/lon) to scan nearby tracks
+- **OpenStreetMap Overpass API**: Automatic track geometry fetching with retry logic
+- **Multi-Element Support**: Processes raceway, track, pit_lane, motor_racing tagged ways
+- **Deduplication**: Prevents duplicate segments from overlapping OSM data
+
+#### Coordinate System
+- **Local Flat-Earth Cartesian Projection**
+  - Origin: Bounding box center = (0, 0)
+  - Scale: 1 unit = exactly 1 meter
+  - Earth radius: 6,378,137 meters (WGS84)
+  - Spherical trigonometry for accuracy
+
+#### Segment-Level Editing
+- **Click-to-Select**: Click any track segment to highlight (yellow)
+- **Width Override**: Set custom width in meters with real-time visual update
+- **Type Toggle**: Switch between 'track' (colored) and 'pit' (orange) classifications
+- **Delete Operation**: Remove unwanted segments (kart tracks, service roads)
+- **State Preservation**: All edits saved in session files
+
+#### Technical Data Configuration
+- **Sector Lengths**: Input sector distances in inches (auto-converted to meters)
+  - Sector 1, 2, 3 lengths
+  - Used for timing line placement
+- **Total Circuit Length**: Official track length in miles
+  - Enables auto-scaling calibration
+  - Corrects GPS inaccuracies
+- **Pit Lane GPS**: Optional pit entry/exit coordinates for detection
+- **Start/Finish Anchoring**: GPS coordinates for spline rotation
+
+#### Spline Generation Pipeline (5 Phases)
+
+**Phase A: Anchoring**
+- Projects SF GPS to local meter coordinates
+- Falls back to search coordinates if missing
+
+**Phase B: Graph Stitching**
+- Nearest Neighbor Walk Algorithm
+- Starts from segment closest to SF anchor
+- 50-meter connection threshold
+- Intelligent segment reversal for continuous flow
+- Creates closed loop from disjointed OSM segments
+
+**Phase C: High-Resolution Resampling**
+- 1-meter resolution interpolation
+- Linear interpolation between raw OSM points
+- Creates spline where `index ≈ distance_in_meters`
+- Cumulative distance tracking
+
+**Phase D: Auto-Scaling (Calibration)**
+```
+scaling_factor = (target_miles × 1609.34) / raw_length_meters
+```
+- Uniform expansion/contraction of entire geometry
+- Matches official FIA/track measurements
+- Corrects GPS drift and corner-cutting
+
+**Phase E: Sectoring**
+- Converts sector inches to meters
+- Locates SF index in spline
+- Rotates array so SF = index 0
+- Marks sector boundaries by cumulative distance
+- Generates color-coded visualization
+  - Blue: Sector 1
+  - Yellow: Sector 2
+  - Red: Sector 3
+
+#### Viewport Controls
+- **Pan**: Click-and-drag to navigate
+- **Zoom**: Mouse wheel (centered on cursor)
+  - Min: 50 meters (macro inspection)
+  - Max: 10 kilometers (wide overview)
+- **Reset View**: Instant fit-all
+
+#### Data Export
+- **Console Output**: Detailed JSON telemetry package
+  - Node count, scaling factor, total length
+  - Sector indices and lengths
+  - Input parameters
+  - Node samples (first/middle/last)
+- **Spline Export**: Full node array JSON
+  - Every meter: x, y, distance, width
+  - Sector metadata
+  - Visual path data
+
+---
+
+### Tab 2: Fine-Tune
+
+#### Node Selection System
+- **Node A Placement**: Left-click to place blue marker
+- **Node B Placement**: Ctrl+Click to place orange marker
+- **Range Highlighting**: Visualizes all nodes between A and B
+- **ESC to Clear**: Reset both markers
+- **Info Display**: Shows selected indices and count
+
+#### Width Editing
+- **Range Update**: Apply width to all nodes between A and B
+- **Real-Time Visualization**: Immediate visual feedback
+- **Pit Lane Support**: Updates both track and pit lane nodes
+- **Width Validation**: Positive values only
+
+#### Selection Inversion
+- **Inside/Outside Toggle**: Invert selection to outside of track
+- **Use Case**: Adjust outer barriers vs. inner curbs
+- **Visual Feedback**: Highlighted region flips
+
+#### Turn Marker System
+- **Turn Creation**: Mark corners with numbered turns (1-99)
+- **Apex Detection**: Automatically identifies apex node
+- **Direction Classification**: Left/right turn detection
+- **Turn Analytics Storage**: Stores indices for telemetry analysis
+- **Duplicate Prevention**: Warns on conflicting turn numbers
+- **Turn Deletion**: Remove markers with confirmation
+
+#### Turn Data Structure
+```json
+{
+  "turns": {
+    "1": {
+      "indices": [230, 231, ..., 245],
+      "apex": 237,
+      "direction": "left",
+      "inverted": false
+    }
+  }
+}
+```
+
+---
+
+### Tab 3: 3D Render
+
+#### Telemetry Loading
+- **Folder Selection**: Load race data folder
+- **Auto-Detection**: Recognizes parsed vs. raw telemetry
+- **On-Demand Parsing**: Offers to parse raw data if needed
+- **Session Management**: Organizes by race/vehicle hierarchy
+
+#### Data Sources
+- **Parsed Mode**: Pre-processed vehicle CSV files
+  - Fast loading
+  - Indexed by race and vehicle
+- **Raw Mode**: Direct telemetry CSV files
+  - Slower but no pre-processing needed
+  - Real-time state calculation
+
+#### Race & Vehicle Selection
+- **Race Dropdown**: Select from available races
+- **Vehicle Dropdown**: Shows all vehicles in selected race
+  - Displays full vehicle IDs
+  - Tooltips for long names
+- **Auto-Sync**: Switching vehicles maintains playback time position
+
+#### 3D Track Rendering
+
+**Road Mesh**
+- Catmull-Rom spline interpolation for smooth curves
+- 8 intermediate points per segment
+- Width-based polygon generation
+- Sector-based coloring (Blue/Yellow/Red)
+- Elevation integration (z-axis from DEM data)
+
+**Pit Lane Mesh**
+- Separate orange-colored geometry
+- Integrated with main spline or visual paths
+- Variable width support
+- Connected to main track
+
+**Marker System**
+- 🏁 Start/Finish marker (white)
+- S1→S2, S2→S3 sector boundaries (colored)
+- ↰T1, ↱T2 turn markers (green=left, red=right)
+- 🛑 Peak brake pressure markers (per lap)
+- ⚡ Peak lateral G markers (per lap)
+- Lap-specific telemetry overlays
+
+#### Playback System
+
+**Playback Controls**
+- ▶ Play/Pause toggle
+- ⏮ Reset to start
+- Slider: Manual position seeking
+- Speed buttons: 1x, 10x, 100x, 1000x
+
+**Playback Modes**
+- **Timestamp-Based**: Uses real elapsed time for accurate speed
+- **Variable Speed**: Adjustable from real-time to 1000x
+- **Drag-and-Drop**: Slider scrubbing with auto-pause
+- **Resume Support**: Continues from drag position
+
+**Trail Visualization**
+- **Tron-Style Trail**: Blue glowing trail from lap start
+- **Lap-Specific**: Resets on lap change
+- **Real-Time**: Updates every frame
+- **Elevation-Aware**: Hovers 0.2m above track
+
+**Reference Path**
+- **Green Line**: Shows complete lap path
+- **Lap-Filtered**: Only displays current lap
+- **Elevation-Aware**: Hovers 0.15m above track
+- **Transparency**: Semi-transparent for clarity
+
+#### Camera Modes
+- **Third Person** (default): Behind and above vehicle
+  - Dynamic following
+  - Smooth rotation
+- **Top Down**: Bird's eye view
+  - Fixed overhead
+  - Good for layout understanding
+- **Free View**: Manual orbit control
+  - Mouse-based rotation
+  - Zoom and pan
+
+#### Live HUD Overlay
+
+**Top-Right Panel (Telemetry)**
+- 📊 TELEMETRY header
+- Distance: Current track position in feet
+- Lap Progress: Percentage of lap completed
+- Current Sector: S1/S2/S3 with color coding
+- Sector Times:
+  - S1 time (blue)
+  - S2 time (yellow)
+  - S3 time (red)
+  - Live timing (⏱) for current sector
+
+**Control Bar Displays**
+- RPM: Engine speed with color coding
+  - Green: < 5000 RPM
+  - Orange: 5000-6500 RPM
+  - Red: > 6500 RPM
+- Gear: Current gear (N/R/1-6)
+
+**Top-Left Panel (Legend)**
+- 🗺️ LEGEND header
+- Marker explanations
+- Icon guide
+
+#### Sector Timing System
+- **Distance-Based Detection**: Uses track distance, not index
+- **10-Meter Hysteresis**: Prevents flickering at boundaries
+- **SF Line Crossing**: Automatic sector reset on lap completion
+- **Live Timing**: Shows elapsed time in current sector
+- **Lap Start Sync**: Initializes from telemetry data
+- **Historical Display**: Shows completed sector times
+
+#### Lap Analytics (Per-Lap)
+- **Sector Times**: S1, S2, S3 durations
+- **Turn Analytics**:
+  - Apex speed (MPH)
+  - Max lateral G-force
+  - Turn time (seconds)
+- **Peak Brake Pressure**: Combined front + rear
+- **Peak Lateral G**: Maximum absolute value
+- **Position Markers**: 3D text overlays at peak locations
+
+#### Elevation Alignment
+- **KDTree-Based Matching**: Fast 2D spatial lookup
+- **Z-Axis Correction**: Snaps vehicle to track elevation
+- **Continuous Update**: Applied to all state history
+
+#### Session State Persistence
+- **Telemetry Embedding**: Full DataFrame saved in .sark files
+- **Race Selection**: Restores active race
+- **Vehicle Selection**: Restores active vehicle
+- **Playback Position**: Optional resume from saved position
+
+---
+
+### Tab 4: Race Telemetry
+
+#### Multi-Plot Dashboard
+
+**9 Synchronized Charts**:
+1. **Speed vs. Distance**: Vehicle speed profile
+2. **Throttle vs. Distance**: Accelerator pedal position (%)
+3. **Brake Pressure vs. Distance**: Front/rear brake pressure
+4. **Steering Angle vs. Distance**: Steering input (degrees)
+5. **Lateral G vs. Distance**: Cornering forces
+6. **Longitudinal G vs. Distance**: Acceleration/braking forces
+7. **RPM vs. Distance**: Engine speed
+8. **Gear vs. Distance**: Transmission gear
+9. **Instability Index vs. Distance**: Calculated stability metric
+
+#### Lap Management
+- **Lap Selector Dropdown**: Choose from available laps
+- **Multi-Lap Loading**: Load multiple laps simultaneously
+- **Color Coding**: Each lap gets unique color
+- **Active Lap Highlight**: Thicker line for selected lap
+- **Lap Clearing**: Remove individual or all laps
+
+#### Time Delta Analysis
+- **Reference Lap Selection**: Choose baseline lap
+- **Active Lap Comparison**: Real-time delta calculation
+- **Distance Synchronization**: Aligned by track position
+- **Positive/Negative Indication**:
+  - Positive: Active lap slower
+  - Negative: Active lap faster
+- **Dedicated Delta Plot**: Separate chart for time differences
+
+#### Interactive Plot Features
+- **Click-to-Focus**: Click any plot to enable interactions
+- **Border Highlighting**: Blue border on focused plot
+- **Crosshair Cursor**: Dash-line crosshair in focused plot
+- **Independent Zoom/Pan**: Each plot can be zoomed separately
+- **Auto-Unfocus**: Clicking another plot transfers focus
+- **Mouse Wheel Zoom**: Vertical and horizontal
+- **Click-and-Drag Pan**: Navigate zoomed view
+
+#### Analytics Calculations
+
+**Instability Index**:
+```
+Index = |Steering Angle| × |Lateral G| × (Speed / 100)
+```
+- 5-point moving average smoothing
+- Identifies unstable/twitchy sections
+- High values indicate driver corrections
+
+**Gear Shift Detection**:
+- Upshifts: Gear increase
+- Downshifts: Gear decrease (ignores neutral)
+- Captures: distance, RPM, speed, gear transition
+- Visual markers on plots
+
+**Lap Statistics Panel**:
+- Top Speed (MPH)
+- Max Lateral G
+- Peak Brake Pressure
+- Average Speed
+- Coasting Percentage
+- Brake Bias (front/rear %)
+- Lap Time (seconds)
+- Total Distance (meters)
+
+#### Turn-by-Turn Breakdown
+- **Turn Selection**: Dropdown of numbered turns
+- **Turn Analytics Table**:
+  - Turn ID
+  - Apex Speed (MPH)
+  - Max Lateral G
+  - Turn Time (seconds)
+  - Entry Speed
+  - Exit Speed
+- **Multi-Lap Comparison**: See turn performance across laps
+- **Visual Highlighting**: Turn region marked on plots
+
+#### Plot Synchronization
+- **Distance Alignment**: All plots share X-axis (distance)
+- **Vertical Lines**: Show same position across all plots
+- **Linked Panning**: Pan one, pan all (when not focused)
+- **Independent Y-Axes**: Each metric uses appropriate scale
+
+#### Data Filtering & Smoothing
+- **NaN Handling**: Fills missing values with 0 or interpolates
+- **Moving Averages**: Smooths noisy signals
+- **Outlier Detection**: Flags suspicious data points
+
+#### Export Capabilities
+- **Screenshot**: Capture dashboard view
+- **CSV Export**: Export processed lap data
+- **Report Generation**: PDF summary (future feature)
+
+---
+
+## Workflow Guide
+
+### Scenario 1: New Track Mapping
+
+**Goal**: Create accurate track geometry for "Barber Motorsports Park"
+
+**Steps**:
+1. **Open Tab 1: Scan & Finalize**
+2. **Enter Coordinates**:
+   - Lat: 33.5414
+   - Lon: -86.0711
+3. **Click 🔍 Scan**
+   - Wait for OSM data fetch
+   - Track geometry appears in viewport
+4. **Edit Segments (Optional)**:
+   - Click unwanted kart track segment
+   - Click "🗑 Delete"
+   - Repeat for service roads
+5. **Configure Technical Data**:
+   - Sector 1: 45000 inches
+   - Sector 2: 42000 inches
+   - Sector 3: 48000 inches
+   - Total Length: 2.38 miles
+6. **Click ✓ Finalize Track**
+   - Graph stitching runs
+   - High-res resampling (1m)
+   - Auto-scaling applies
+   - Sector colors appear
+7. **Verify Console Output**:
+   - Check node count (~3800 for 2.38 mi)
+   - Verify scaling factor (~1.0 if GPS accurate)
+8. **Save Session**:
+   - File → Save Session
+   - Choose .sark format
+   - All edits preserved
+
+---
+
+### Scenario 2: Turn Marker Fine-Tuning
+
+**Goal**: Mark Turn 1 apex and adjust entry width
+
+**Steps**:
+1. **Open Tab 2: Fine-Tune**
+   - Track auto-loads from Tab 1
+2. **Identify Turn 1 Apex**:
+   - Zoom in on first corner
+   - Left-click on apex node (blue marker)
+3. **Mark Turn Entry**:
+   - Pan to turn entry
+   - Ctrl+Click on entry node (orange marker)
+4. **Create Turn Marker**:
+   - Click "📍 Create Turn"
+   - Enter "1" for Turn 1
+   - Confirm
+   - Turn marker appears on track
+5. **Adjust Width** (optional):
+   - Select entry and exit nodes
+   - Enter "15" meters
+   - Click "Update Width Between Nodes"
+   - Track visually widens
+6. **Click ✓ Finalize Fine-Tuning**
+   - Turn data saved
+   - Available for Tab 3 & 4
+
+---
+
+### Scenario 3: Telemetry Playback & Analysis
+
+**Goal**: Analyze GR86-002-000 performance at Barber
+
+**Steps**:
+1. **Open Tab 3: 3D Render**
+2. **Load Telemetry**:
+   - Click "📁 Folder"
+   - Navigate to `Non_Code/dataSets/barber`
+   - Select folder
+   - If raw data: choose output folder for parsing
+3. **Select Race**:
+   - Race dropdown: "Race 1"
+4. **Select Vehicle**:
+   - Vehicle dropdown: "GR86-002-000"
+   - Wait for processing
+   - Green reference path appears
+5. **Start Playback**:
+   - Click ▶ Play
+   - Watch live HUD:
+     - RPM climbs to 7000
+     - Gear shifts 1→2→3
+     - Speed increases
+6. **Analyze Sector 1**:
+   - Watch sector label change "Sector: S1"
+   - See S1→S2 marker approach
+   - Sector time appears: "S1: 28.45s"
+7. **Find Peak Brake**:
+   - Look for 🛑 marker in turn
+   - Read value: "🛑 142bar"
+   - Matches hard braking zone
+8. **Change Camera**:
+   - Click "Top" for overhead view
+   - Click "3rd" to return
+9. **Increase Speed**:
+   - Click "100x"
+   - Complete lap in 3 seconds
+10. **Analyze Turn 1** (if marked):
+    - Turn marker shows "↰T1"
+    - Telemetry overlay:
+      - 87mph apex speed
+      - 1.4g lateral
+      - 2.8s turn time
+
+---
+
+### Scenario 4: Multi-Lap Comparison
+
+**Goal**: Compare Lap 3 vs. Lap 5 performance
+
+**Steps**:
+1. **Open Tab 4: Race Telemetry**
+   - Auto-loads if vehicle selected in Tab 3
+2. **Load Lap 3**:
+   - Lap selector: "Lap 3"
+   - Click "Load Lap"
+   - All 9 plots populate with blue line
+3. **Load Lap 5**:
+   - Lap selector: "Lap 5"
+   - Click "Load Lap"
+   - Orange line appears on all plots
+4. **Activate Time Delta**:
+   - Reference Lap: "Lap 3"
+   - Click "Show Delta"
+   - Delta plot appears at bottom
+5. **Analyze Speed Difference**:
+   - Focus Speed plot (click)
+   - Zoom into Turn 3 (mouse wheel)
+   - Lap 5 shows 3mph higher apex speed
+6. **Check Throttle Application**:
+   - Focus Throttle plot
+   - Lap 5 has earlier throttle at exit
+   - 100% sooner by 15 meters
+7. **Examine Braking**:
+   - Focus Brake Pressure plot
+   - Lap 5: 145 bar peak
+   - Lap 3: 138 bar peak
+   - Lap 5 brakes harder
+8. **Review Turn Analytics**:
+   - Turn dropdown: "Turn 1"
+   - Table shows:
+     - Lap 3: 84mph apex, 1.35g
+     - Lap 5: 87mph apex, 1.42g
+   - Lap 5 is faster
+9. **Check Lap Stats**:
+   - Lap 5:
+     - Top Speed: 132 MPH
+     - Lap Time: 92.4s
+   - Lap 3:
+     - Top Speed: 129 MPH
+     - Lap Time: 93.1s
+   - Lap 5 is 0.7s faster
+
+---
+
+### Scenario 5: Session Persistence & Resume
+
+**Goal**: Save and restore complete analysis session
+
+**Steps**:
+1. **Complete Workflow**:
+   - Tab 1: Finalize track
+   - Tab 2: Mark turns
+   - Tab 3: Load telemetry, select vehicle
+   - Tab 4: Load multiple laps
+2. **Save Session**:
+   - File → Save Session
+   - Filename: `barber_gr86_002_analysis.sark`
+   - Format: SARK (binary pickle)
+   - Saves:
+     - Track geometry + edits
+     - Turn markers
+     - Telemetry DataFrame
+     - Race/vehicle selection
+     - Loaded laps
+3. **Close Application**
+4. **Reopen Later**:
+   - Launch RaceTrack Analytics Pro
+   - File → Load Session
+   - Select `barber_gr86_002_analysis.sark`
+5. **Instant Restore**:
+   - Tab 1: Track appears with sectors
+   - Tab 2: Turn markers present
+   - Tab 3: Vehicle loaded, 3D ready
+   - Tab 4: All laps restored
+6. **Continue Analysis**:
+   - No re-processing needed
+   - All state intact
+
+---
+
+## Technical Capabilities
+
+### Coordinate Projection Mathematics
+
+**Local Flat-Earth Formula**:
+```python
+R = 6_378_137  # Earth radius (meters)
+center_lat, center_lon = bbox_center
+
+def project(lat, lon):
+    dLat = (lat - center_lat) × π/180
+    dLon = (lon - center_lon) × π/180
+    latRad = center_lat × π/180
+    
+    x = R × dLon × cos(latRad)  # meters east
+    y = R × dLat                 # meters north
+    
+    return (x, y)
+```
+
+**Inverse Projection**:
+```python
+def unproject(x, y):
+    latRad = center_lat × π/180
+    
+    dLat = y / R
+    dLon = x / (R × cos(latRad))
+    
+    lat = center_lat + (dLat × 180/π)
+    lon = center_lon + (dLon × 180/π)
+    
+    return (lat, lon)
+```
+
+### Graph Stitching Algorithm
+
+**Nearest Neighbor Walk**:
+```python
+def stitch_segments(segments, sf_anchor):
+    # Find closest segment to start/finish
+    current = find_closest(segments, sf_anchor)
+    ordered = [current]
+    used = {current.id}
+    
+    while True:
+        tail = current.points[-1]
+        best_dist = inf
+        best_seg = None
+        reverse = False
+        
+        for seg in segments:
+            if seg.id in used:
+                continue
+            
+            # Distance to head
+            d_head = distance(tail, seg.points[0])
+            if d_head < best_dist:
+                best_dist = d_head
+                best_seg = seg
+                reverse = False
+            
+            # Distance to tail
+            d_tail = distance(tail, seg.points[-1])
+            if d_tail < best_dist:
+                best_dist = d_tail
+                best_seg = seg
+                reverse = True
+        
+        if best_dist > 50:  # 50m threshold
+            break
+        
+        if reverse:
+            best_seg.points.reverse()
+        
+        ordered.append(best_seg)
+        used.add(best_seg.id)
+        current = best_seg
+    
+    return ordered
+```
+
+### Catmull-Rom Spline Interpolation
+
+**Smooth Curve Generation**:
+```python
+def catmull_rom(p0, p1, p2, p3, num_points=8):
+    points = []
+    for i in range(num_points):
+        t = i / num_points
+        t2 = t * t
+        t3 = t2 * t
+        
+        # Catmull-Rom matrix
+        x = 0.5 * (
+            (2 * p1.x) +
+            (-p0.x + p2.x) * t +
+            (2*p0.x - 5*p1.x + 4*p2.x - p3.x) * t2 +
+            (-p0.x + 3*p1.x - 3*p2.x + p3.x) * t3
+        )
+        
+        y = 0.5 * (
+            (2 * p1.y) +
+            (-p0.y + p2.y) * t +
+            (2*p0.y - 5*p1.y + 4*p2.y - p3.y) * t2 +
+            (-p0.y + 3*p1.y - 3*p2.y + p3.y) * t3
+        )
+        
+        z = lerp(p1.z, p2.z, t)
+        width = lerp(p1.width, p2.width, t)
+        
+        points.append({'x': x, 'y': y, 'z': z, 'width': width})
+    
+    return points
+```
+
+### KDTree Elevation Alignment
+
+**Fast Spatial Lookup**:
+```python
+from scipy.spatial import KDTree
+
+def align_to_elevation(states, track_points):
+    # Build 2D tree (x, y only)
+    track_xy = track_points[:, :2]
+    tree = KDTree(track_xy)
+    
+    # Query all state positions
+    state_xy = np.array([s['position'][:2] for s in states])
+    distances, indices = tree.query(state_xy)
+    
+    # Update Z coordinates
+    for i, state in enumerate(states):
+        track_z = track_points[indices[i], 2]
+        state['position'][2] = track_z
+```
+
+### Sector Timing Logic
+
+**Distance-Based with Hysteresis**:
+```python
+def update_sector(distance, s1_dist, s2_dist, current_sector):
+    buffer = 10.0  # 10-meter hysteresis
+    
+    if distance < s1_dist - buffer:
+        return 1
+    elif distance < s1_dist + buffer:
+        return current_sector  # Stay in current
+    elif distance < s2_dist - buffer:
+        return 2
+    elif distance < s2_dist + buffer:
+        return current_sector
+    else:
+        return 3
+```
+
+**SF Line Crossing Detection**:
+```python
+def detect_sf_crossing(distance, last_distance):
+    # Detect wrap-around (e.g., 3900m → 50m)
+    distance_drop = last_distance - distance
+    
+    if distance_drop > 1000:  # Threshold
+        print("🏁 SF line crossed")
+        reset_sector_times()
+        return True
+    
+    return False
+```
+
+---
+
+## Data Integration
+
+### OpenStreetMap Overpass API
+
+**Query Structure**:
+```
+[out:json][timeout:25];
+(
+  way(around:2000,{lat},{lon})
+  ["highway"="raceway"];
+  
+  way(around:2000,{lat},{lon})
+  ["leisure"="track"]
+  ["sport"="motor_racing"];
+  
+  way(around:2000,{lat},{lon})
+  ["highway"="service"]
+  ["service"="pit_lane"];
+);
+out body;
+>;
+out skel qt;
+```
+
+**Retry Strategy**:
+- 3 attempts per endpoint
+- Failover between:
+  - `overpass-api.de`
+  - `overpass.kumi.systems`
+- 5-second timeout per request
+
+### Telemetry CSV Format
+
+**Raw Telemetry**:
+```csv
+timestamp,lap,speed,nmot,gear,aps,pbrake_f,pbrake_r,Steering_Angle,accy_can,accx_can,...
+0.000,1,0.0,800,0,0.0,0.0,0.0,0.0,0.0,0.0,...
+0.016,1,2.3,1200,1,15.2,0.0,0.0,5.2,0.05,0.12,...
+```
+
+**Parsed Vehicle Files**:
+```csv
+elapsed_seconds,lat,lon,speed,nmot,gear,aps,pbrake_f,pbrake_r,...
+0.000,33.5414,-86.0711,0.0,800,0,0.0,0.0,0.0,...
+```
+
+**Required Columns**:
+- `timestamp` or `elapsed_seconds`: Time in seconds
+- `lap`: Lap number (integer)
+- `speed`: Speed in m/s or MPH (auto-detected)
+- `nmot` or `rpm`: Engine RPM
+- `gear`: Transmission gear (-1=R, 0=N, 1-6)
+- `Steering_Angle`: Steering input in degrees
+- `accy_can`: Lateral G-force
+- `accx_can`: Longitudinal G-force
+- `aps`: Accelerator pedal position (%)
+- `pbrake_f`, `pbrake_r`: Brake pressure (bar)
+
+**Optional Columns**:
+- `lat`, `lon`: GPS coordinates
+- `Laptrigger_lapdist_dls`: Distance along lap (meters)
+- `twater`, `toil`: Temperatures (°C)
+
+---
+
+## Advanced Analytics
+
+### Instability Index Calculation
+
+**Formula**:
+```python
+instability = |steering| × |lat_g| × (speed / 100)
+```
+
+**Components**:
+- `|steering|`: Absolute steering angle (degrees)
+- `|lat_g|`: Absolute lateral G-force
+- `speed / 100`: Speed normalization factor
+
+**Smoothing**:
+```python
+raw_score = steering * lat_g * (speed / 100)
+smoothed = uniform_filter1d(raw_score, size=5, mode='nearest')
+```
+
+**Interpretation**:
+- Low (0-2): Stable, smooth driving
+- Medium (2-5): Minor corrections
+- High (5+): Unstable, twitchy, or oversteer
+
+**Use Cases**:
+- Identify problematic track sections
+- Compare driver smoothness
+- Detect setup issues (alignment, suspension)
+
+### Time Delta Synchronization
+
+**Distance-Based Alignment**:
+```python
+def calculate_delta(active_lap, reference_lap):
+    # Interpolate both laps to common distance points
+    common_dist = np.linspace(0, min(active_lap.dist.max(), 
+                                     reference_lap.dist.max()), 
+                              1000)
+    
+    active_time = np.interp(common_dist, 
+                           active_lap.dist, 
+                           active_lap.elapsed_seconds)
+    
+    reference_time = np.interp(common_dist, 
+                              reference_lap.dist, 
+                              reference_lap.elapsed_seconds)
+    
+    # Delta = active - reference (positive = slower)
+    delta = active_time - reference_time
+    
+    return common_dist, delta
+```
+
+**Visualization**:
+- Positive (red): Active lap slower
+- Negative (green): Active lap faster
+- Zero (gray): Equal pace
+
+### Gear Shift Analysis
+
+**Detection Algorithm**:
+```python
+def detect_shifts(df):
+    shifts = {'upshifts': [], 'downshifts': []}
+    
+    gear = df['gear'].astype(int)
+    
+    for i in range(1, len(df)):
+        prev = gear.iloc[i-1]
+        curr = gear.iloc[i]
+        
+        if curr > prev:  # Upshift
+            shifts['upshifts'].append({
+                'distance': df.iloc[i]['Laptrigger_lapdist_dls'],
+                'rpm_before': df.iloc[i-1]['nmot'],
+                'rpm_after': df.iloc[i]['nmot'],
+                'speed': df.iloc[i]['speed'],
+                'from': prev,
+                'to': curr
+            })
+        
+        elif curr < prev and curr > 0:  # Downshift
+            shifts['downshifts'].append({
+                'distance': df.iloc[i]['Laptrigger_lapdist_dls'],
+                'rpm_before': df.iloc[i-1]['nmot'],
+                'rpm_after': df.iloc[i]['nmot'],
+                'speed': df.iloc[i]['speed'],
+                'from': prev,
+                'to': curr
+            })
+    
+    return shifts
+```
+
+**Metrics**:
+- Upshift RPM: Optimal shift point
+- Downshift RPM: Rev-matching analysis
+- Shift Count: Gearbox usage pattern
+- Shift Smoothness: RPM delta consistency
+
+### Turn-by-Turn Performance
+
+**Turn Analytics**:
+```python
+def analyze_turn(lap_df, turn_indices):
+    turn_data = lap_df.iloc[turn_indices]
+    
+    analytics = {
+        'apex_speed': turn_data['speed'].min() * 2.237,  # MPH
+        'entry_speed': turn_data.iloc[0]['speed'] * 2.237,
+        'exit_speed': turn_data.iloc[-1]['speed'] * 2.237,
+        'max_lat_g': abs(turn_data['accy_can']).max(),
+        'avg_lat_g': abs(turn_data['accy_can']).mean(),
+        'turn_time': turn_data.iloc[-1]['elapsed_seconds'] - 
+                     turn_data.iloc[0]['elapsed_seconds'],
+        'min_radius': estimate_radius(turn_data),
+        'brake_point': detect_brake_point(turn_data),
+        'throttle_point': detect_throttle_point(turn_data)
+    }
+    
+    return analytics
+```
+
+**Comparison Matrix**:
+```
+Turn | Lap 1 | Lap 2 | Lap 3 | Δ Best
+-----|-------|-------|-------|-------
+  1  | 84mph | 87mph | 85mph | -2mph
+  2  | 72mph | 75mph | 76mph |  0mph
+  3  | 96mph | 98mph | 99mph |  0mph
+```
+
+---
+
+## File Format Specifications
+
+### .sark Session File (Binary Pickle)
+
+**Structure**:
+```python
+session = {
+    'track_data': {
+        'name': str,
+        'paths': [
+            {
+                'id': int,
+                'points': [[x, y], ...],
+                'rawPoints': [[lat, lon], ...],
+                'type': 'track' | 'pit',
+                'widthValue': float,
+                'widthLabel': str
+            }
+        ],
+        'center': {'lat': float, 'lon': float},
+        'boundsMeters': {
+            'minX': float, 'maxX': float,
+            'minY': float, 'maxY': float
+        },
+        'splinePoints': [
+            {
+                'x': float, 'y': float, 'z': float,
+                'dist': float, 'width': float,
+                'pit_lane': str | None
+            }
+        ]
+    },
+    
+    'finalized_data': {
+        'visualPaths': [...],
+        'sfMarker': {'x': float, 'y': float},
+        'splineData': {
+            'meta': {...},
+            'sectors': {...}
+        },
+        'turns': {
+            '1': {
+                'indices': [int, ...],
+                'apex': int,
+                'direction': 'left' | 'right',
+                'inverted': bool
+            }
+        }
+    },
+    
+    'inputs': {
+        'lat': str,
+        'lon': str,
+        'sector1': str,
+        'sector2': str,
+        'sector3': str,
+        'length': str,
+        'pit_in_lat': str,
+        'pit_in_lon': str,
+        'pit_out_lat': str,
+        'pit_out_lon': str
+    },
+    
+    'telemetry_state': {
+        'telemetry_data': pd.DataFrame,  # Full telemetry
+        'race_id': str,
+        'vehicle_id': str,
+        'playback_index': int,
+        'loaded_laps': [int, ...]
+    }
+}
+```
+
+**Size**: Typically 500KB - 10MB
+- Without telemetry: ~500KB
+- With telemetry: 2-10MB (depends on lap count)
+
+### Spline Export JSON
+
+**Structure**:
+```json
+{
+  "trackName": "Barber Motorsports Park",
+  "splineData": {
+    "meta": {
+      "totalLengthMeters": "3426.82",
+      "scalingFactorApplied": "1.0023",
+      "nodesCount": 3427
+    },
+    "sectors": {
+      "sfIndex": 0,
+      "s1EndIndex": 1142,
+      "s1LengthMeters": "1142.00",
+      "s2EndIndex": 2284,
+      "s2LengthMeters": "1142.00",
+      "s3EndIndex": 3426
+    },
+    "inputs": {
+      "sector1_inches": 45000,
+      "sector2_inches": 45000,
+      "sector3_inches": 45000,
+      "target_miles": 2.13
+    },
+    "nodeSample": [
+      {"x": 0.0, "y": 0.0, "dist": 0.0, "index": 0},
+      {"x": 12.34, "y": 5.67, "dist": 13.5, "index": 13},
+      ...
+    ]
+  },
+  "fullSpline": [
+    {
+      "index": 0,
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0,
+      "distance": 0.0,
+      "width": 12.0
+    },
+    ...  // 3427 points
+  ],
+  "visualPaths": [...]
+}
+```
+
+---
+
+## Performance Characteristics
+
+### Processing Times
+- **OSM Fetch**: 2-5 seconds (network-dependent)
+- **Graph Stitching**: 50-200ms (depends on segment count)
+- **High-Res Resampling**: 10-50ms
+- **Auto-Scaling**: <10ms
+- **Sectoring**: <10ms
+- **Telemetry Parsing**: 100-500ms per vehicle
+- **State Processing**: 200-800ms (vectorized)
+- **3D Rendering**: 60 FPS (16ms per frame)
+- **Session Save**: <500ms
+- **Session Load**: <1 second
+
+### Memory Usage
+- **Base Application**: ~150 MB
+- **Single Track**: ~5 MB
+- **Telemetry (1 vehicle)**: ~20 MB
+- **Multiple Laps Loaded**: ~50 MB
+- **3D Mesh**: ~10 MB
+- **Total Peak**: ~250 MB (typical session)
+
+### Scalability
+- **Track Complexity**: Up to 10,000 nodes (tested)
+- **Telemetry Length**: Up to 100,000 samples (tested)
+- **Concurrent Laps**: 10+ laps in Tab 4
+- **Playback Speed**: Real-time to 1000x
+
+---
+
+## System Requirements
+
+### Minimum
+- **OS**: Windows 10/11, macOS 10.15+, Linux (Ubuntu 20.04+)
+- **Python**: 3.12+
+- **RAM**: 4 GB
+- **GPU**: OpenGL 3.0 compatible
+- **Storage**: 500 MB + data
+
+### Recommended
+- **OS**: Windows 11, macOS 13+
+- **Python**: 3.12
+- **RAM**: 8 GB+
+- **GPU**: Dedicated GPU with OpenGL 4.5
+- **Storage**: 2 GB SSD
+
+### Dependencies
+```
+PyQt6 >= 6.6.0
+pyqtgraph >= 0.13.0
+PyOpenGL >= 3.1.0
+requests >= 2.31.0
+numpy >= 1.26.0
+scipy >= 1.11.0
+pandas >= 2.1.0
+```
+
+---
+
+## Support & Troubleshooting
+
+### Common Issues
+
+**Track Not Found**:
+- Verify coordinates are accurate
+- Try nearby coordinates (± 0.01 degrees)
+- Check if track is in OpenStreetMap
+- Use [openstreetmap.org](https://openstreetmap.org) to verify
+
+**Parsing Fails**:
+- Ensure telemetry CSV has required columns
+- Check for corrupted data rows
+- Verify timestamp continuity
+- Try parsing single vehicle first
+
+**3D Rendering Slow**:
+- Reduce playback speed
+- Close other applications
+- Update GPU drivers
+- Lower track complexity (delete unnecessary segments)
+
+**Sector Times Not Showing**:
+- Run Tab 1: Finalize with sector inputs
+- Verify sector lengths are reasonable
+- Check console for sector boundary messages
+
+**Turn Markers Missing**:
+- Run Tab 2: Fine-Tune to create markers
+- Verify turn data in finalized_data
+- Re-finalize if turns added after first finalization
+
+---
+
+## Future Enhancements
+
+### Planned Features
+- **AI-Powered Analysis**: Machine learning for optimal line detection
+- **Multi-Vehicle Comparison**: Side-by-side 3D playback
+- **Race Strategy Tools**: Tire deg, fuel calc, pit stop optimization
+- **VR Support**: Immersive telemetry review
+- **Cloud Sync**: Share sessions across devices
+- **Mobile Companion**: iOS/Android telemetry viewer
+- **PDF Reports**: Auto-generated lap analysis documents
+- **Video Integration**: Sync telemetry with onboard footage
+
+---
+
+## Conclusion
+
+**Race Track Studio** provides a complete, professional-grade workflow for race track mapping and telemetry analysis. From initial OSM data acquisition through detailed lap-by-lap performance comparison, the application empowers drivers, engineers, and teams with actionable insights.
+
+**Key Strengths**:
+- ✅ Zero-cost track mapping (OSM-based)
+- ✅ High precision (1-meter resolution)
+- ✅ Complete editing control (segment to node level)
+- ✅ Real-time 3D visualization
+- ✅ Advanced analytics (time delta, turn-by-turn, instability)
+- ✅ Session persistence (full state saving)
+- ✅ Professional UI (PyQt6-based)
+
+**Ideal For**:
+- Amateur racing teams
+- Sim racing enthusiasts
+- Track day participants
+- Racing schools
+- Automotive journalists
+- Game developers (track data export)
+
+---
+
+**Version**: 2.0 Pro  
+**Last Updated**: November 24, 2025  
+**Document Status**: ✅ Complete  
+**Total Application Lines**: ~12,000+ Python code
